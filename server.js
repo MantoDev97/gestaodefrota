@@ -9,6 +9,7 @@ const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || "127.0.0.1";
 const DATA_DIR = path.join(__dirname, "data");
 const STATE_FILE = path.join(DATA_DIR, "fleet-state.json");
+const WHATSAPP_CONFIG_FILE = path.join(DATA_DIR, "whatsapp-config.json");
 const ALERT_DAYS = [30, 15, 7, 1, 0];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,6 +22,25 @@ const server = http.createServer(async (request, response) => {
   try {
     if (request.method === "GET" && request.url === "/api/automation-status") {
       return sendJson(response, automationStatus());
+    }
+
+    if (request.method === "GET" && request.url === "/api/whatsapp-config") {
+      return sendJson(response, publicWhatsappConfig());
+    }
+
+    if (request.method === "POST" && request.url === "/api/whatsapp-config") {
+      const body = await readJsonBody(request);
+      writeWhatsappConfig(body);
+      return sendJson(response, { ok: true, status: automationStatus() });
+    }
+
+    if (request.method === "POST" && request.url === "/api/test-whatsapp") {
+      const body = await readJsonBody(request);
+      const result = await sendWhatsApp(normalizePhone(body.to), body.message || "Teste do Controle de Frota.", {
+        contact: { name: "Teste", whatsapp: body.to },
+        documentItem: { type: "Teste", dueDate: localDateKey(new Date()) }
+      });
+      return sendJson(response, { ok: result.status !== "erro", ...result });
     }
 
     if (request.method === "GET" && request.url === "/api/state") {
@@ -81,6 +101,9 @@ function ensureDataDir() {
   if (!fs.existsSync(STATE_FILE)) {
     writeState({ vehicles: [], drivers: [], documents: [], checklists: [], notifications: [] });
   }
+  if (!fs.existsSync(WHATSAPP_CONFIG_FILE)) {
+    writeWhatsappConfig({});
+  }
 }
 
 function readState() {
@@ -98,6 +121,49 @@ function normalizeState(state) {
     documents: Array.isArray(state.documents) ? state.documents : [],
     checklists: Array.isArray(state.checklists) ? state.checklists : [],
     notifications: Array.isArray(state.notifications) ? state.notifications : []
+  };
+}
+
+function defaultWhatsappConfig() {
+  return {
+    provider: process.env.WHATSAPP_PROVIDER || "dry-run",
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
+    graphVersion: process.env.WHATSAPP_GRAPH_VERSION || "v23.0",
+    webhookUrl: process.env.WHATSAPP_WEBHOOK_URL || "",
+    webhookToken: process.env.WHATSAPP_WEBHOOK_TOKEN || "",
+    managerWhatsapp: process.env.FLEET_MANAGER_WHATSAPP || "5511999990001",
+    supervisorWhatsapp: process.env.OPERATION_SUPERVISOR_WHATSAPP || "5511999990002",
+    responsibleWhatsapp: process.env.DEFAULT_RESPONSIBLE_WHATSAPP || "5511888880000",
+    alertTime: process.env.ALERT_TIME || "08:00",
+    alertTimezone: process.env.ALERT_TIMEZONE || "America/Sao_Paulo"
+  };
+}
+
+function readWhatsappConfig() {
+  const saved = fs.existsSync(WHATSAPP_CONFIG_FILE)
+    ? JSON.parse(fs.readFileSync(WHATSAPP_CONFIG_FILE, "utf8"))
+    : {};
+  return { ...defaultWhatsappConfig(), ...saved };
+}
+
+function writeWhatsappConfig(config) {
+  const current = fs.existsSync(WHATSAPP_CONFIG_FILE)
+    ? JSON.parse(fs.readFileSync(WHATSAPP_CONFIG_FILE, "utf8"))
+    : {};
+  const next = { ...current, ...config };
+  ["accessToken", "webhookToken"].forEach((key) => {
+    if (next[key] === "********") next[key] = current[key] || "";
+  });
+  fs.writeFileSync(WHATSAPP_CONFIG_FILE, JSON.stringify(next, null, 2));
+}
+
+function publicWhatsappConfig() {
+  const config = readWhatsappConfig();
+  return {
+    ...config,
+    accessToken: config.accessToken ? "********" : "",
+    webhookToken: config.webhookToken ? "********" : ""
   };
 }
 

@@ -52,6 +52,7 @@
         <button class="nav-item" data-view="documents">Documentos</button>
         <button class="nav-item" data-view="checklists">Checklists</button>
         <button class="nav-item" data-view="notifications">Notificações</button>
+        <button class="nav-item" data-view="whatsapp">WhatsApp</button>
         <button class="nav-item" data-view="reports">Relatórios</button>
       </nav>
       <button class="ghost-button" id="resetData">Restaurar exemplos</button>
@@ -247,6 +248,51 @@
               <tbody id="notificationRows"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section class="view" id="whatsapp">
+        <div class="split-layout">
+          <section class="form-panel">
+            <div class="panel-heading">
+              <h2>Conectar WhatsApp</h2>
+              <span id="whatsappStatus">Carregando</span>
+            </div>
+            <form id="whatsappForm" class="form-grid whatsapp-form">
+              <select name="provider" id="whatsappProvider">
+                <option value="dry-run">Modo teste</option>
+                <option value="cloud">WhatsApp Cloud API</option>
+                <option value="webhook">Evolution API / Z-API / Webhook</option>
+              </select>
+              <input name="accessToken" type="password" placeholder="Token Cloud API" />
+              <input name="phoneNumberId" placeholder="Phone Number ID" />
+              <input name="graphVersion" placeholder="Versão Graph API" value="v23.0" />
+              <input name="webhookUrl" placeholder="URL do webhook" />
+              <input name="webhookToken" type="password" placeholder="Token do webhook" />
+              <input name="managerWhatsapp" placeholder="WhatsApp do gestor" />
+              <input name="supervisorWhatsapp" placeholder="WhatsApp do supervisor" />
+              <input name="responsibleWhatsapp" placeholder="WhatsApp responsável padrão" />
+              <input name="alertTime" type="time" value="08:00" />
+              <input name="alertTimezone" placeholder="Fuso horário" value="America/Sao_Paulo" />
+              <button class="primary-button" type="submit">Salvar conexão</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Teste de envio</h2>
+              <span>Mensagem real se a API estiver configurada</span>
+            </div>
+            <form id="whatsappTestForm" class="test-form">
+              <input name="to" placeholder="Número com DDI. Ex: 5511999999999" required />
+              <textarea name="message" rows="5" required>Teste do Controle de Frota: WhatsApp conectado para alertas automáticos.</textarea>
+              <button class="secondary-button" type="submit">Enviar teste</button>
+            </form>
+            <div class="connection-help">
+              <strong>Como funciona</strong>
+              <p>No modo Cloud API, use token e Phone Number ID da Meta. No modo webhook, informe a URL de envio do provedor. Se usar Evolution API ou Z-API com QR Code, faça a leitura no painel do provedor e cole aqui a URL/API gerada.</p>
+            </div>
+          </section>
         </div>
       </section>
 

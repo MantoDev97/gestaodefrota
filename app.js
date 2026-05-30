@@ -21,22 +21,24 @@ const roleLabels = {
 
 const permissions = {
   gestor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
     canManageChecklists: true,
     canSendAlerts: true,
-    canResetData: true
+    canResetData: true,
+    canConfigureWhatsapp: true
   },
   supervisor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
     canManageChecklists: true,
     canSendAlerts: true,
-    canResetData: false
+    canResetData: false,
+    canConfigureWhatsapp: true
   },
   encarregado: {
     views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications"],
@@ -45,7 +47,8 @@ const permissions = {
     canManageDocuments: true,
     canManageChecklists: true,
     canSendAlerts: true,
-    canResetData: false
+    canResetData: false,
+    canConfigureWhatsapp: false
   },
   analista: {
     views: ["dashboard", "vehicles", "drivers", "documents", "notifications", "reports"],
@@ -54,7 +57,8 @@ const permissions = {
     canManageDocuments: true,
     canManageChecklists: false,
     canSendAlerts: false,
-    canResetData: false
+    canResetData: false,
+    canConfigureWhatsapp: false
   },
   motorista: {
     views: ["dashboard", "documents", "checklists"],
@@ -63,7 +67,8 @@ const permissions = {
     canManageDocuments: false,
     canManageChecklists: true,
     canSendAlerts: false,
-    canResetData: false
+    canResetData: false,
+    canConfigureWhatsapp: false
   }
 };
 
@@ -145,6 +150,7 @@ const views = {
   documents: "Documentos",
   checklists: "Checklists",
   notifications: "Notificações",
+  whatsapp: "WhatsApp",
   reports: "Relatórios"
 };
 
@@ -158,6 +164,8 @@ document.getElementById("vehicleForm").addEventListener("submit", saveVehicle);
 document.getElementById("driverForm").addEventListener("submit", saveDriver);
 document.getElementById("documentForm").addEventListener("submit", saveDocument);
 document.getElementById("checklistForm").addEventListener("submit", saveChecklist);
+document.getElementById("whatsappForm").addEventListener("submit", saveWhatsappConfig);
+document.getElementById("whatsappTestForm").addEventListener("submit", sendWhatsappTest);
 document.getElementById("docOwnerType").addEventListener("change", renderOwnerOptions);
 document.getElementById("runRobot").addEventListener("click", runNotificationRobot);
 document.getElementById("openQuickDoc").addEventListener("click", () => showView("documents"));
@@ -228,8 +236,67 @@ async function refreshAutomationStatus() {
     const status = await response.json();
     const provider = status.provider === "dry-run" ? "simulação" : status.provider;
     statusElement.textContent = `Automático ${status.alertTime} · ${provider}`;
+    const whatsappStatus = document.getElementById("whatsappStatus");
+    if (whatsappStatus) {
+      whatsappStatus.textContent = status.ready ? `Conectado · ${provider}` : `Pendente · ${provider}`;
+    }
   } catch {
     statusElement.textContent = "Servidor automático offline";
+    const whatsappStatus = document.getElementById("whatsappStatus");
+    if (whatsappStatus) whatsappStatus.textContent = "Servidor offline";
+  }
+}
+
+async function loadWhatsappConfig() {
+  if (!currentUser || !can("canConfigureWhatsapp")) return;
+  try {
+    const response = await fetch("/api/whatsapp-config");
+    if (!response.ok) return;
+    const config = await response.json();
+    const form = document.getElementById("whatsappForm");
+    Object.entries(config).forEach(([key, value]) => {
+      if (form.elements[key]) form.elements[key].value = value || "";
+    });
+  } catch {
+    // Sem backend ativo.
+  }
+}
+
+async function saveWhatsappConfig(event) {
+  event.preventDefault();
+  if (!requirePermission("canConfigureWhatsapp", "Apenas gestor ou supervisor podem configurar o WhatsApp.")) return;
+
+  const config = Object.fromEntries(new FormData(event.target));
+  try {
+    const response = await fetch("/api/whatsapp-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    });
+    if (!response.ok) throw new Error("Falha ao salvar.");
+    await refreshAutomationStatus();
+    showToast("Conexão do WhatsApp salva. O robô automático usará esta configuração.");
+  } catch {
+    showToast("Não foi possível salvar no servidor. Verifique se o backend está online.");
+  }
+}
+
+async function sendWhatsappTest(event) {
+  event.preventDefault();
+  if (!requirePermission("canConfigureWhatsapp", "Apenas gestor ou supervisor podem testar o WhatsApp.")) return;
+
+  const payload = Object.fromEntries(new FormData(event.target));
+  try {
+    const response = await fetch("/api/test-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Falha no teste.");
+    showToast(`Teste processado: ${result.status}.`);
+  } catch (error) {
+    showToast(error.message || "Não foi possível enviar o teste.");
   }
 }
 
@@ -313,6 +380,7 @@ function applyAuthState() {
   document.getElementById("driverForm").closest(".form-panel").hidden = !can("canManageDrivers");
   document.getElementById("documentForm").closest(".form-panel").hidden = !can("canManageDocuments");
   document.getElementById("checklistForm").closest(".form-panel").hidden = !can("canManageChecklists");
+  document.querySelector('[data-view="whatsapp"]').hidden = !can("canConfigureWhatsapp");
 
   if (!canView(document.querySelector(".view.active")?.id)) {
     showView(firstAllowedView());
@@ -623,6 +691,7 @@ function render() {
   renderNotifications();
   renderReports();
   renderRobotTimeline();
+  loadWhatsappConfig();
 }
 
 function renderOptions() {

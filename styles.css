@@ -396,6 +396,37 @@ th {
   min-height: 18px;
 }
 
+.whatsapp-form {
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.whatsapp-form button {
+  grid-column: 1 / -1;
+}
+
+.test-form {
+  display: grid;
+  gap: 12px;
+}
+
+.test-form input,
+.test-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.connection-help {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+}
+
 .card-grid,
 .report-grid {
   display: grid;
