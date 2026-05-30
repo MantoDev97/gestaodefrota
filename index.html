@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Controle de Frota</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="login-screen" id="loginScreen">
+      <div class="login-panel">
+        <div class="brand login-brand">
+          <div class="brand-mark">CF</div>
+          <div>
+            <strong>Controle de Frota</strong>
+            <span>Acesso por hierarquia</span>
+          </div>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>E-mail
+            <input name="email" type="email" placeholder="gestor@frota.com" required />
+          </label>
+          <label>Senha
+            <input name="password" type="password" placeholder="123456" required />
+          </label>
+          <button class="primary-button" type="submit">Entrar</button>
+          <p class="login-error" id="loginError" role="alert"></p>
+        </form>
+        <div class="demo-users">
+          <strong>Usuários de teste</strong>
+          <span>gestor@frota.com · 123456</span>
+          <span>supervisor@frota.com · 123456</span>
+          <span>encarregado@frota.com · 123456</span>
+          <span>analista@frota.com · 123456</span>
+          <span>motorista@frota.com · 123456</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">CF</div>
+        <div>
+          <strong>Controle de Frota</strong>
+          <span>Alertas automáticos</span>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="vehicles">Veículos</button>
+        <button class="nav-item" data-view="drivers">Motoristas</button>
+        <button class="nav-item" data-view="documents">Documentos</button>
+        <button class="nav-item" data-view="checklists">Checklists</button>
+        <button class="nav-item" data-view="notifications">Notificações</button>
+        <button class="nav-item" data-view="reports">Relatórios</button>
+      </nav>
+      <button class="ghost-button" id="resetData">Restaurar exemplos</button>
+    </aside>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Gestão operacional</p>
+          <h1 id="viewTitle">Dashboard</h1>
+        </div>
+        <div class="top-actions">
+          <div class="user-badge" id="userBadge"></div>
+          <button class="secondary-button" id="runRobot">Verificar vencimentos</button>
+          <button class="primary-button" id="openQuickDoc">Novo documento</button>
+          <button class="secondary-button" id="logoutButton">Sair</button>
+        </div>
+      </header>
+
+      <section class="view active" id="dashboard">
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="split-layout">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Próximos vencimentos</h2>
+              <span id="nextDueCount"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Documento</th>
+                    <th>Veículo/Motorista</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="dueTable"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Robô diário 08:00</h2>
+              <span id="automationStatus">Sincronizando</span>
+            </div>
+            <div class="timeline" id="robotTimeline"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="vehicles">
+        <div class="form-panel">
+          <h2>Cadastrar veículo</h2>
+          <form id="vehicleForm" class="form-grid">
+            <input name="plate" placeholder="Placa" required />
+            <input name="model" placeholder="Modelo" required />
+            <input name="brand" placeholder="Marca" required />
+            <input name="year" placeholder="Ano" type="number" min="1950" max="2100" required />
+            <input name="renavam" placeholder="Renavam" />
+            <input name="chassis" placeholder="Chassi" />
+            <input name="responsible" placeholder="Responsável pelo veículo" />
+            <select name="driverId" id="vehicleDriver"></select>
+            <input name="photo" placeholder="URL da foto do veículo" />
+            <select name="status">
+              <option value="operacao">Em operação</option>
+              <option value="manutencao">Em manutenção</option>
+              <option value="inativo">Inativo</option>
+            </select>
+            <button class="primary-button" type="submit">Salvar veículo</button>
+          </form>
+        </div>
+        <div class="card-grid" id="vehicleCards"></div>
+      </section>
+
+      <section class="view" id="drivers">
+        <div class="form-panel">
+          <h2>Cadastrar motorista</h2>
+          <form id="driverForm" class="form-grid">
+            <input name="name" placeholder="Nome" required />
+            <input name="cpf" placeholder="CPF" required />
+            <input name="cnh" placeholder="CNH" required />
+            <select name="category">
+              <option>A</option>
+              <option>B</option>
+              <option>C</option>
+              <option>D</option>
+              <option>E</option>
+            </select>
+            <label class="field-label">Vencimento da CNH<input name="cnhDue" type="date" required /></label>
+            <input name="phone" placeholder="Telefone" />
+            <input name="whatsapp" placeholder="WhatsApp" required />
+            <input name="email" placeholder="E-mail" type="email" />
+            <button class="primary-button" type="submit">Salvar motorista</button>
+          </form>
+        </div>
+        <div class="table-wrap panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>CNH</th>
+                <th>Categoria</th>
+                <th>Vencimento</th>
+                <th>WhatsApp</th>
+              </tr>
+            </thead>
+            <tbody id="driverRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view" id="documents">
+        <div class="form-panel">
+          <h2>Cadastrar documento</h2>
+          <form id="documentForm" class="form-grid">
+            <select name="ownerType" id="docOwnerType">
+              <option value="vehicle">Veículo</option>
+              <option value="driver">Motorista</option>
+            </select>
+            <select name="ownerId" id="docOwner"></select>
+            <select name="type">
+              <option>Licenciamento</option>
+              <option>Seguro</option>
+              <option>Tacógrafo</option>
+              <option>ANTT</option>
+              <option>Certificado obrigatório</option>
+              <option>CNH</option>
+              <option>Inspeção veicular</option>
+            </select>
+            <label class="field-label">Vencimento<input name="dueDate" type="date" required /></label>
+            <input name="cost" type="number" min="0" step="0.01" placeholder="Custo, se houver" />
+            <button class="primary-button" type="submit">Salvar documento</button>
+          </form>
+        </div>
+        <div class="table-wrap panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Vínculo</th>
+                <th>Vencimento</th>
+                <th>Dias</th>
+                <th>Status</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="documentRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view" id="checklists">
+        <div class="form-panel">
+          <h2>Checklist digital</h2>
+          <form id="checklistForm" class="form-grid checklist-form">
+            <select name="vehicleId" id="checklistVehicle"></select>
+            <select name="kind">
+              <option value="saida">Vistoria de saída</option>
+              <option value="retorno">Vistoria de retorno</option>
+            </select>
+            <label><input type="checkbox" name="tires" /> Pneus conferidos</label>
+            <label><input type="checkbox" name="lights" /> Luzes funcionando</label>
+            <label><input type="checkbox" name="documents" /> Documentos no veículo</label>
+            <label><input type="checkbox" name="body" /> Lataria sem avarias novas</label>
+            <input name="photo" placeholder="URL do registro fotográfico" />
+            <input name="signature" placeholder="Assinatura digital" required />
+            <button class="primary-button" type="submit">Registrar checklist</button>
+          </form>
+        </div>
+        <div class="card-grid" id="checklistCards"></div>
+      </section>
+
+      <section class="view" id="notifications">
+        <div class="panel">
+          <div class="panel-heading">
+            <h2>Histórico de notificações</h2>
+            <button class="secondary-button" id="clearNotifications">Limpar histórico</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Documento</th>
+                  <th>Destinatário</th>
+                  <th>Canal</th>
+                  <th>Status</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="notificationRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="reports">
+        <div class="report-grid" id="reportGrid"></div>
+      </section>
+    </main>
+
+    <dialog id="toastDialog">
+      <p id="toastMessage"></p>
+      <button class="primary-button" id="closeToast">OK</button>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

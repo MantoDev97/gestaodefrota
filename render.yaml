@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: gestao-de-frota
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: ALERT_TIME
+        value: 08:00
+      - key: ALERT_TIMEZONE
+        value: America/Sao_Paulo
+      - key: WHATSAPP_PROVIDER
+        value: dry-run
+      - key: CRON_TOKEN
+        generateValue: true
