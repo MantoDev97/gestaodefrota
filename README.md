@@ -67,6 +67,18 @@ O envio automático roda no `server.js`. Por padrão, ele vem em `dry-run`, ou s
 
 Também é possível configurar pela tela `WhatsApp` dentro do sistema, usando login de gestor ou supervisor.
 
+### Modo simples com QR Code
+
+Para conectar escaneando QR Code, use uma Evolution API já hospedada:
+
+1. Entre como gestor ou supervisor.
+2. Abra `WhatsApp`.
+3. Escolha `Conectar com QR Code`.
+4. Informe `URL da Evolution API`, `API Key` e `Nome da instância`.
+5. Clique em `Salvar conexão`.
+6. Clique em `Conectar / gerar QR`.
+7. Escaneie o QR Code com o WhatsApp.
+
 ### Modo WhatsApp Cloud API
 
 ```env

@@ -255,18 +255,22 @@
         <div class="split-layout">
           <section class="form-panel">
             <div class="panel-heading">
-              <h2>Conectar WhatsApp</h2>
+              <h2>Conectar meu WhatsApp</h2>
               <span id="whatsappStatus">Carregando</span>
             </div>
             <form id="whatsappForm" class="form-grid whatsapp-form">
               <select name="provider" id="whatsappProvider">
                 <option value="dry-run">Modo teste</option>
                 <option value="cloud">WhatsApp Cloud API</option>
+                <option value="evolution">Conectar com QR Code</option>
                 <option value="webhook">Evolution API / Z-API / Webhook</option>
               </select>
               <input name="accessToken" type="password" placeholder="Token Cloud API" />
               <input name="phoneNumberId" placeholder="Phone Number ID" />
               <input name="graphVersion" placeholder="Versão Graph API" value="v23.0" />
+              <input name="evolutionUrl" placeholder="URL da Evolution API" />
+              <input name="evolutionApiKey" type="password" placeholder="API Key da Evolution" />
+              <input name="evolutionInstance" placeholder="Nome da instância" value="gestao-frota" />
               <input name="webhookUrl" placeholder="URL do webhook" />
               <input name="webhookToken" type="password" placeholder="Token do webhook" />
               <input name="managerWhatsapp" placeholder="WhatsApp do gestor" />
@@ -276,6 +280,12 @@
               <input name="alertTimezone" placeholder="Fuso horário" value="America/Sao_Paulo" />
               <button class="primary-button" type="submit">Salvar conexão</button>
             </form>
+            <div class="connect-box">
+              <button class="secondary-button" id="connectWhatsappButton" type="button">Conectar / gerar QR</button>
+              <div class="qr-box" id="qrBox">
+                <span>QR Code aparecerá aqui quando a API permitir conexão por leitura.</span>
+              </div>
+            </div>
           </section>
 
           <section class="panel">

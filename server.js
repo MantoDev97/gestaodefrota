@@ -43,6 +43,11 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, { ok: result.status !== "erro", ...result });
     }
 
+    if (request.method === "POST" && request.url === "/api/whatsapp-connect") {
+      const result = await connectWhatsApp();
+      return sendJson(response, result, result.ok ? 200 : 400);
+    }
+
     if (request.method === "GET" && request.url === "/api/state") {
       return sendJson(response, readState());
     }
@@ -130,6 +135,9 @@ function defaultWhatsappConfig() {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
     graphVersion: process.env.WHATSAPP_GRAPH_VERSION || "v23.0",
+    evolutionUrl: process.env.EVOLUTION_API_URL || "",
+    evolutionApiKey: process.env.EVOLUTION_API_KEY || "",
+    evolutionInstance: process.env.EVOLUTION_INSTANCE || "gestao-frota",
     webhookUrl: process.env.WHATSAPP_WEBHOOK_URL || "",
     webhookToken: process.env.WHATSAPP_WEBHOOK_TOKEN || "",
     managerWhatsapp: process.env.FLEET_MANAGER_WHATSAPP || "5511999990001",
@@ -152,7 +160,7 @@ function writeWhatsappConfig(config) {
     ? JSON.parse(fs.readFileSync(WHATSAPP_CONFIG_FILE, "utf8"))
     : {};
   const next = { ...current, ...config };
-  ["accessToken", "webhookToken"].forEach((key) => {
+  ["accessToken", "webhookToken", "evolutionApiKey"].forEach((key) => {
     if (next[key] === "********") next[key] = current[key] || "";
   });
   fs.writeFileSync(WHATSAPP_CONFIG_FILE, JSON.stringify(next, null, 2));
@@ -163,7 +171,8 @@ function publicWhatsappConfig() {
   return {
     ...config,
     accessToken: config.accessToken ? "********" : "",
-    webhookToken: config.webhookToken ? "********" : ""
+    webhookToken: config.webhookToken ? "********" : "",
+    evolutionApiKey: config.evolutionApiKey ? "********" : ""
   };
 }
 
@@ -250,6 +259,10 @@ async function sendWhatsApp(to, message, meta) {
     return sendWebhookMessage(to, message, meta, config);
   }
 
+  if (provider === "evolution") {
+    return sendEvolutionMessage(to, message, config);
+  }
+
   return { status: "simulado automatico", provider: "dry-run" };
 }
 
@@ -319,6 +332,104 @@ async function sendWebhookMessage(to, message, meta, config) {
   return { status: "enviado", provider: "webhook", providerMessageId: text.slice(0, 120) };
 }
 
+async function sendEvolutionMessage(to, message, config) {
+  if (!config.evolutionUrl || !config.evolutionApiKey || !config.evolutionInstance) {
+    return { status: "pendente configuracao", provider: "evolution", error: "Configure URL, API Key e instância da Evolution API." };
+  }
+
+  const response = await fetch(`${trimSlash(config.evolutionUrl)}/message/sendText/${encodeURIComponent(config.evolutionInstance)}`, {
+    method: "POST",
+    headers: evolutionHeaders(config),
+    body: JSON.stringify({
+      number: to,
+      text: message
+    })
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    return { status: "erro", provider: "evolution", error: text };
+  }
+
+  return { status: "enviado", provider: "evolution", providerMessageId: text.slice(0, 120) };
+}
+
+async function connectWhatsApp() {
+  const config = readWhatsappConfig();
+
+  if (config.provider === "cloud") {
+    const ready = Boolean(config.accessToken && config.phoneNumberId);
+    return {
+      ok: ready,
+      provider: "cloud",
+      message: ready
+        ? "WhatsApp Cloud API configurada. O número oficial enviará os alertas."
+        : "Informe Token Cloud API e Phone Number ID."
+    };
+  }
+
+  if (config.provider !== "evolution") {
+    return {
+      ok: config.provider === "dry-run",
+      provider: config.provider,
+      message: config.provider === "dry-run"
+        ? "Modo teste ativo. Os alertas serão registrados sem envio real."
+        : "Para conexão por QR, selecione Conectar com QR Code."
+    };
+  }
+
+  if (!config.evolutionUrl || !config.evolutionApiKey || !config.evolutionInstance) {
+    return { ok: false, provider: "evolution", error: "Informe URL da Evolution API, API Key e nome da instância." };
+  }
+
+  await ensureEvolutionInstance(config);
+  const response = await fetch(`${trimSlash(config.evolutionUrl)}/instance/connect/${encodeURIComponent(config.evolutionInstance)}`, {
+    method: "GET",
+    headers: evolutionHeaders(config)
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    return { ok: false, provider: "evolution", error: JSON.stringify(payload) };
+  }
+
+  const qrCode = payload.base64 || payload.qrcode?.base64 || payload.qr || payload.code || "";
+  return {
+    ok: true,
+    provider: "evolution",
+    message: qrCode ? "Escaneie o QR Code com o WhatsApp." : "Instância conectada ou aguardando status.",
+    qrCode
+  };
+}
+
+async function ensureEvolutionInstance(config) {
+  const response = await fetch(`${trimSlash(config.evolutionUrl)}/instance/create`, {
+    method: "POST",
+    headers: evolutionHeaders(config),
+    body: JSON.stringify({
+      instanceName: config.evolutionInstance,
+      qrcode: true,
+      integration: "WHATSAPP-BAILEYS"
+    })
+  });
+
+  if ([200, 201, 409, 422].includes(response.status)) return;
+  const text = await response.text();
+  throw new Error(text || "Falha ao criar instância na Evolution API.");
+}
+
+function evolutionHeaders(config) {
+  return {
+    "Content-Type": "application/json",
+    apikey: config.evolutionApiKey,
+    Authorization: `Bearer ${config.evolutionApiKey}`
+  };
+}
+
+function trimSlash(value) {
+  return String(value || "").replace(/\/+$/, "");
+}
+
 function ownerContacts(state, documentItem) {
   const config = readWhatsappConfig();
   const contacts = [
@@ -385,7 +496,8 @@ function automationStatus() {
   const provider = config.provider || "dry-run";
   const cloudReady = provider === "cloud" && config.accessToken && config.phoneNumberId;
   const webhookReady = provider === "webhook" && config.webhookUrl;
-  const ready = provider === "dry-run" || Boolean(cloudReady || webhookReady);
+  const evolutionReady = provider === "evolution" && config.evolutionUrl && config.evolutionApiKey && config.evolutionInstance;
+  const ready = provider === "dry-run" || Boolean(cloudReady || webhookReady || evolutionReady);
   return {
     provider,
     enabled: ready,

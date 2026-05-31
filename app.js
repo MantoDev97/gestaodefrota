@@ -166,6 +166,7 @@ document.getElementById("documentForm").addEventListener("submit", saveDocument)
 document.getElementById("checklistForm").addEventListener("submit", saveChecklist);
 document.getElementById("whatsappForm").addEventListener("submit", saveWhatsappConfig);
 document.getElementById("whatsappTestForm").addEventListener("submit", sendWhatsappTest);
+document.getElementById("connectWhatsappButton").addEventListener("click", connectWhatsapp);
 document.getElementById("docOwnerType").addEventListener("change", renderOwnerOptions);
 document.getElementById("runRobot").addEventListener("click", runNotificationRobot);
 document.getElementById("openQuickDoc").addEventListener("click", () => showView("documents"));
@@ -279,6 +280,40 @@ async function saveWhatsappConfig(event) {
   } catch {
     showToast("Não foi possível salvar no servidor. Verifique se o backend está online.");
   }
+}
+
+async function connectWhatsapp() {
+  if (!requirePermission("canConfigureWhatsapp", "Apenas gestor ou supervisor podem conectar o WhatsApp.")) return;
+
+  const qrBox = document.getElementById("qrBox");
+  qrBox.textContent = "Conectando...";
+
+  try {
+    await fetch("/api/whatsapp-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(document.getElementById("whatsappForm"))))
+    });
+    const response = await fetch("/api/whatsapp-connect", { method: "POST" });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Não foi possível conectar.");
+
+    if (result.qrCode) {
+      qrBox.innerHTML = `<img src="${normalizeQrCode(result.qrCode)}" alt="QR Code para conectar WhatsApp" />`;
+    } else {
+      qrBox.innerHTML = `<strong>${result.message || "WhatsApp configurado."}</strong>`;
+    }
+
+    await refreshAutomationStatus();
+  } catch (error) {
+    qrBox.textContent = error.message || "Falha ao conectar WhatsApp.";
+  }
+}
+
+function normalizeQrCode(qrCode) {
+  if (!qrCode) return "";
+  if (qrCode.startsWith("data:image")) return qrCode;
+  return `data:image/png;base64,${qrCode}`;
 }
 
 async function sendWhatsappTest(event) {

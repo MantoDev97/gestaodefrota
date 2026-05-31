@@ -427,6 +427,30 @@ th {
   color: var(--muted);
 }
 
+.connect-box {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.qr-box {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #f8fafb;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px;
+}
+
+.qr-box img {
+  width: min(240px, 100%);
+  height: auto;
+  border-radius: 8px;
+}
+
 .card-grid,
 .report-grid {
   display: grid;
