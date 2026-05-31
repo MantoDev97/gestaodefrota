@@ -170,7 +170,8 @@ function publicWhatsappConfig() {
 function startScheduler() {
   setInterval(() => {
     const now = new Date();
-    const configuredTime = process.env.ALERT_TIME || "08:00";
+    const config = readWhatsappConfig();
+    const configuredTime = config.alertTime || "08:00";
     const zonedNow = zonedParts(now);
     const today = zonedNow.date;
     const currentTime = zonedNow.time;
@@ -238,23 +239,24 @@ async function runAutomaticAlerts(source) {
 }
 
 async function sendWhatsApp(to, message, meta) {
-  const provider = process.env.WHATSAPP_PROVIDER || "dry-run";
+  const config = readWhatsappConfig();
+  const provider = config.provider || "dry-run";
 
   if (provider === "cloud") {
-    return sendCloudApiMessage(to, message);
+    return sendCloudApiMessage(to, message, config);
   }
 
   if (provider === "webhook") {
-    return sendWebhookMessage(to, message, meta);
+    return sendWebhookMessage(to, message, meta, config);
   }
 
   return { status: "simulado automatico", provider: "dry-run" };
 }
 
-async function sendCloudApiMessage(to, message) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const version = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
+async function sendCloudApiMessage(to, message, config) {
+  const token = config.accessToken;
+  const phoneNumberId = config.phoneNumberId;
+  const version = config.graphVersion || "v23.0";
 
   if (!token || !phoneNumberId) {
     return { status: "pendente configuracao", provider: "cloud", error: "Configure WHATSAPP_ACCESS_TOKEN e WHATSAPP_PHONE_NUMBER_ID." };
@@ -287,15 +289,15 @@ async function sendCloudApiMessage(to, message) {
   };
 }
 
-async function sendWebhookMessage(to, message, meta) {
-  const url = process.env.WHATSAPP_WEBHOOK_URL;
+async function sendWebhookMessage(to, message, meta, config) {
+  const url = config.webhookUrl;
   if (!url) {
     return { status: "pendente configuracao", provider: "webhook", error: "Configure WHATSAPP_WEBHOOK_URL." };
   }
 
   const headers = { "Content-Type": "application/json" };
-  if (process.env.WHATSAPP_WEBHOOK_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.WHATSAPP_WEBHOOK_TOKEN}`;
+  if (config.webhookToken) {
+    headers.Authorization = `Bearer ${config.webhookToken}`;
   }
 
   const response = await fetch(url, {
@@ -318,9 +320,10 @@ async function sendWebhookMessage(to, message, meta) {
 }
 
 function ownerContacts(state, documentItem) {
+  const config = readWhatsappConfig();
   const contacts = [
-    { name: "Gestor da frota", whatsapp: process.env.FLEET_MANAGER_WHATSAPP || "5511999990001", email: "gestor@empresa.com" },
-    { name: "Supervisor operacional", whatsapp: process.env.OPERATION_SUPERVISOR_WHATSAPP || "5511999990002", email: "supervisor@empresa.com" }
+    { name: "Gestor da frota", whatsapp: config.managerWhatsapp || "5511999990001", email: "gestor@empresa.com" },
+    { name: "Supervisor operacional", whatsapp: config.supervisorWhatsapp || "5511999990002", email: "supervisor@empresa.com" }
   ];
 
   if (documentItem.ownerType === "driver") {
@@ -335,7 +338,7 @@ function ownerContacts(state, documentItem) {
   if (vehicle?.responsible) {
     contacts.unshift({
       name: vehicle.responsible,
-      whatsapp: process.env.DEFAULT_RESPONSIBLE_WHATSAPP || "5511888880000",
+      whatsapp: config.responsibleWhatsapp || "5511888880000",
       email: "responsavel@empresa.com"
     });
   }
@@ -378,21 +381,25 @@ function normalizePhone(phone) {
 }
 
 function automationStatus() {
-  const provider = process.env.WHATSAPP_PROVIDER || "dry-run";
-  const cloudReady = provider === "cloud" && process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const webhookReady = provider === "webhook" && process.env.WHATSAPP_WEBHOOK_URL;
+  const config = readWhatsappConfig();
+  const provider = config.provider || "dry-run";
+  const cloudReady = provider === "cloud" && config.accessToken && config.phoneNumberId;
+  const webhookReady = provider === "webhook" && config.webhookUrl;
+  const ready = provider === "dry-run" || Boolean(cloudReady || webhookReady);
   return {
     provider,
-    enabled: provider === "dry-run" || Boolean(cloudReady || webhookReady),
-    alertTime: process.env.ALERT_TIME || "08:00",
-    alertTimezone: process.env.ALERT_TIMEZONE || "America/Sao_Paulo",
+    enabled: ready,
+    ready,
+    alertTime: config.alertTime || "08:00",
+    alertTimezone: config.alertTimezone || "America/Sao_Paulo",
     lastAutomaticRun
   };
 }
 
 function zonedParts(date) {
+  const config = readWhatsappConfig();
   const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: process.env.ALERT_TIMEZONE || "America/Sao_Paulo",
+    timeZone: config.alertTimezone || "America/Sao_Paulo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

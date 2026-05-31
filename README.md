@@ -48,6 +48,7 @@ Esse endpoint executa a verificação mesmo que o servidor tenha acabado de acor
 - Dashboard com veículos, documentos próximos do vencimento, vencidos, operação e manutenção.
 - Robô automático no servidor que verifica vencimentos diariamente e processa alertas para 30, 15, 7, 1 dia e vencidos.
 - Envio automático por WhatsApp via WhatsApp Cloud API ou webhook de provedor externo.
+- Tela `WhatsApp` para gestor/supervisor configurarem provedor, token, números de alerta e envio de teste.
 - Histórico de notificações e relatórios operacionais.
 
 ## Acessos de teste
@@ -63,6 +64,8 @@ Todos usam a senha `123456`.
 ## WhatsApp
 
 O envio automático roda no `server.js`. Por padrão, ele vem em `dry-run`, ou seja, registra os alertas sem disparar mensagens reais. Para envio real, copie `.env.example` para `.env` e configure um provedor.
+
+Também é possível configurar pela tela `WhatsApp` dentro do sistema, usando login de gestor ou supervisor.
 
 ### Modo WhatsApp Cloud API
 
