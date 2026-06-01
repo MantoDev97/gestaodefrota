@@ -13,6 +13,20 @@ services:
       - key: ALERT_TIMEZONE
         value: America/Sao_Paulo
       - key: WHATSAPP_PROVIDER
-        value: dry-run
+        value: webhook
+      - key: WHATSAPP_WEBHOOK_URL
+        sync: false
+      - key: WHATSAPP_WEBHOOK_TOKEN
+        sync: false
+      - key: FLEET_MANAGER_WHATSAPP
+        sync: false
       - key: CRON_TOKEN
         generateValue: true
+      - key: GMAIL_OAUTH_CREDENTIALS_JSON
+        sync: false
+      - key: GMAIL_OAUTH_TOKEN_JSON
+        sync: false
+      - key: GMAIL_MODIFY_TOKEN_JSON
+        sync: false
+      - key: GMAIL_ARCHIVE_MAX_PER_RUN
+        value: 50

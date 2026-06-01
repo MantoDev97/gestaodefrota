@@ -433,6 +433,25 @@ th {
   gap: 12px;
 }
 
+.gmail-actions,
+.gmail-summary,
+.gmail-result {
+  display: grid;
+  gap: 12px;
+}
+
+.gmail-actions {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.gmail-summary {
+  color: var(--muted);
+}
+
+.gmail-result {
+  color: var(--ink);
+}
+
 .qr-box {
   min-height: 220px;
   display: grid;
@@ -561,6 +580,7 @@ dialog::backdrop {
   .metric-grid,
   .card-grid,
   .report-grid,
+  .gmail-actions,
   .form-grid {
     grid-template-columns: 1fr;
   }

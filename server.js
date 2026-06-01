@@ -1,6 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
+const { execFile } = require("node:child_process");
 const { randomUUID } = require("node:crypto");
 
 loadEnv();
@@ -12,6 +13,7 @@ const STATE_FILE = path.join(DATA_DIR, "fleet-state.json");
 const WHATSAPP_CONFIG_FILE = path.join(DATA_DIR, "whatsapp-config.json");
 const ALERT_DAYS = [30, 15, 7, 1, 0];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_ALERT_WHATSAPP = "5594991712559";
 
 let lastAutomaticRun = "";
 
@@ -71,6 +73,31 @@ const server = http.createServer(async (request, response) => {
       }
       const result = await runAutomaticAlerts("cron");
       return sendJson(response, result);
+    }
+
+    if (request.method === "GET" && request.url.startsWith("/api/run-gmail-automations")) {
+      const url = new URL(request.url, `http://${request.headers.host}`);
+      const token = url.searchParams.get("token");
+      if (!process.env.CRON_TOKEN || token !== process.env.CRON_TOKEN) {
+        return sendJson(response, { ok: false, error: "Token de automação inválido." }, 403);
+      }
+      const result = await runGmailAutomations();
+      return sendJson(response, result, result.ok ? 200 : 500);
+    }
+
+    if (request.method === "POST" && request.url === "/api/run-gmail-automations") {
+      const result = await runGmailAutomations();
+      return sendJson(response, result, result.ok ? 200 : 500);
+    }
+
+    if (request.method === "POST" && request.url === "/api/run-gmail-boletos") {
+      const result = await runNodeScript("scripts/gmail-boletos.js");
+      return sendJson(response, result, result.ok ? 200 : 500);
+    }
+
+    if (request.method === "POST" && request.url === "/api/run-gmail-archive") {
+      const result = await runNodeScript("scripts/gmail-arquivar-promocoes-bancos.js");
+      return sendJson(response, result, result.ok ? 200 : 500);
     }
 
     serveStatic(request, response);
@@ -140,9 +167,9 @@ function defaultWhatsappConfig() {
     evolutionInstance: process.env.EVOLUTION_INSTANCE || "gestao-frota",
     webhookUrl: process.env.WHATSAPP_WEBHOOK_URL || "",
     webhookToken: process.env.WHATSAPP_WEBHOOK_TOKEN || "",
-    managerWhatsapp: process.env.FLEET_MANAGER_WHATSAPP || "5511999990001",
-    supervisorWhatsapp: process.env.OPERATION_SUPERVISOR_WHATSAPP || "5511999990002",
-    responsibleWhatsapp: process.env.DEFAULT_RESPONSIBLE_WHATSAPP || "5511888880000",
+    managerWhatsapp: process.env.FLEET_MANAGER_WHATSAPP || DEFAULT_ALERT_WHATSAPP,
+    supervisorWhatsapp: process.env.OPERATION_SUPERVISOR_WHATSAPP || DEFAULT_ALERT_WHATSAPP,
+    responsibleWhatsapp: process.env.DEFAULT_RESPONSIBLE_WHATSAPP || DEFAULT_ALERT_WHATSAPP,
     alertTime: process.env.ALERT_TIME || "08:00",
     alertTimezone: process.env.ALERT_TIMEZONE || "America/Sao_Paulo"
   };
@@ -247,6 +274,48 @@ async function runAutomaticAlerts(source) {
   return { ok: true, created: created.length, notifications: created, status: automationStatus() };
 }
 
+async function runGmailAutomations() {
+  const boletos = await runNodeScript("scripts/gmail-boletos.js");
+  const arquivamento = await runNodeScript("scripts/gmail-arquivar-promocoes-bancos.js");
+  const ok = boletos.ok && arquivamento.ok;
+  return {
+    ok,
+    ranAt: new Date().toISOString(),
+    boletos,
+    arquivamento
+  };
+}
+
+function runNodeScript(scriptPath) {
+  return new Promise((resolve) => {
+    execFile(process.execPath, [path.join(__dirname, scriptPath)], {
+      cwd: __dirname,
+      windowsHide: true,
+      timeout: 120000
+    }, (error, stdout, stderr) => {
+      const parsed = parseLastJson(stdout);
+      resolve({
+        ok: !error && (!parsed || parsed.ok !== false),
+        code: error?.code || 0,
+        signal: error?.signal || "",
+        stdout: stdout.trim().slice(-4000),
+        stderr: stderr.trim().slice(-4000),
+        result: parsed
+      });
+    });
+  });
+}
+
+function parseLastJson(output) {
+  const start = output.lastIndexOf("{");
+  if (start === -1) return null;
+  try {
+    return JSON.parse(output.slice(start));
+  } catch {
+    return null;
+  }
+}
+
 async function sendWhatsApp(to, message, meta) {
   const config = readWhatsappConfig();
   const provider = config.provider || "dry-run";
@@ -309,27 +378,45 @@ async function sendWebhookMessage(to, message, meta, config) {
   }
 
   const headers = { "Content-Type": "application/json" };
-  if (config.webhookToken) {
+  const isZApi = isZApiWebhook(url);
+
+  if (isZApi && !config.webhookToken) {
+    return { status: "pendente configuracao", provider: "z-api", error: "Configure WHATSAPP_WEBHOOK_TOKEN com o Client-Token da Z-API." };
+  }
+
+  if (isZApi) {
+    headers["Client-Token"] = config.webhookToken;
+  } else if (config.webhookToken) {
     headers.Authorization = `Bearer ${config.webhookToken}`;
   }
 
   const response = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      to,
-      message,
-      contact: meta.contact,
-      document: meta.documentItem
-    })
+    body: JSON.stringify(isZApi
+      ? { phone: to, message }
+      : {
+          to,
+          message,
+          contact: meta.contact,
+          document: meta.documentItem
+        })
   });
 
   const text = await response.text();
   if (!response.ok) {
-    return { status: "erro", provider: "webhook", error: text };
+    return { status: "erro", provider: isZApi ? "z-api" : "webhook", error: text };
   }
 
-  return { status: "enviado", provider: "webhook", providerMessageId: text.slice(0, 120) };
+  return { status: "enviado", provider: isZApi ? "z-api" : "webhook", providerMessageId: text.slice(0, 120) };
+}
+
+function isZApiWebhook(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().endsWith("z-api.io");
+  } catch {
+    return false;
+  }
 }
 
 async function sendEvolutionMessage(to, message, config) {

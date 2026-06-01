@@ -5,7 +5,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check server.js"
+    "check": "node --check app.js && node --check server.js && node --check scripts/gmail-boletos.js && node --check scripts/gmail-limpar-cassino.js && node --check scripts/gmail-arquivar-promocoes-bancos.js",
+    "gmail:boletos": "node scripts/gmail-boletos.js",
+    "gmail:limpar-cassino": "node scripts/gmail-limpar-cassino.js",
+    "gmail:arquivar-promocoes-bancos": "node scripts/gmail-arquivar-promocoes-bancos.js"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1"
   },
   "engines": {
     "node": ">=20"

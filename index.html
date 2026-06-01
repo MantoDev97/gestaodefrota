@@ -53,6 +53,7 @@
         <button class="nav-item" data-view="checklists">Checklists</button>
         <button class="nav-item" data-view="notifications">Notificações</button>
         <button class="nav-item" data-view="whatsapp">WhatsApp</button>
+        <button class="nav-item" data-view="gmail">Gmail</button>
         <button class="nav-item" data-view="reports">Relatórios</button>
       </nav>
       <button class="ghost-button" id="resetData">Restaurar exemplos</button>
@@ -301,6 +302,32 @@
             <div class="connection-help">
               <strong>Como funciona</strong>
               <p>No modo Cloud API, use token e Phone Number ID da Meta. No modo webhook, informe a URL de envio do provedor. Se usar Evolution API ou Z-API com QR Code, faça a leitura no painel do provedor e cole aqui a URL/API gerada.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="gmail">
+        <div class="split-layout">
+          <section class="form-panel">
+            <div class="panel-heading">
+              <h2>Automações do Gmail</h2>
+              <span id="gmailAutomationStatus">Pronto</span>
+            </div>
+            <div class="gmail-actions">
+              <button class="primary-button" id="runGmailAll" type="button">Rodar tudo</button>
+              <button class="secondary-button" id="runGmailBoletos" type="button">Baixar boletos</button>
+              <button class="secondary-button" id="runGmailArchive" type="button">Arquivar promoções e bancos</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Resumo</h2>
+              <span>Gmail API</span>
+            </div>
+            <div class="gmail-summary" id="gmailSummary">
+              <p>As rotinas usam OAuth do Gmail, salvam boletos em PDF/Office e arquivam promoções ou emails de bancos sem excluir permanentemente.</p>
             </div>
           </section>
         </div>

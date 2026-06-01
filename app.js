@@ -2,6 +2,7 @@ const STORAGE_KEY = "controleFrotaData";
 const SESSION_KEY = "controleFrotaSession";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const alertDays = [30, 15, 7, 1, 0];
+const DEFAULT_ALERT_WHATSAPP = "5594991712559";
 
 const users = [
   { id: "u-gestor", name: "Gestor da Frota", email: "gestor@frota.com", password: "123456", role: "gestor" },
@@ -21,24 +22,26 @@ const roleLabels = {
 
 const permissions = {
   gestor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "gmail", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
     canManageChecklists: true,
     canSendAlerts: true,
     canResetData: true,
-    canConfigureWhatsapp: true
+    canConfigureWhatsapp: true,
+    canRunGmailAutomations: true
   },
   supervisor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "gmail", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
     canManageChecklists: true,
     canSendAlerts: true,
     canResetData: false,
-    canConfigureWhatsapp: true
+    canConfigureWhatsapp: true,
+    canRunGmailAutomations: true
   },
   encarregado: {
     views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications"],
@@ -48,7 +51,8 @@ const permissions = {
     canManageChecklists: true,
     canSendAlerts: true,
     canResetData: false,
-    canConfigureWhatsapp: false
+    canConfigureWhatsapp: false,
+    canRunGmailAutomations: false
   },
   analista: {
     views: ["dashboard", "vehicles", "drivers", "documents", "notifications", "reports"],
@@ -58,7 +62,8 @@ const permissions = {
     canManageChecklists: false,
     canSendAlerts: false,
     canResetData: false,
-    canConfigureWhatsapp: false
+    canConfigureWhatsapp: false,
+    canRunGmailAutomations: false
   },
   motorista: {
     views: ["dashboard", "documents", "checklists"],
@@ -68,7 +73,8 @@ const permissions = {
     canManageChecklists: true,
     canSendAlerts: false,
     canResetData: false,
-    canConfigureWhatsapp: false
+    canConfigureWhatsapp: false,
+    canRunGmailAutomations: false
   }
 };
 
@@ -151,6 +157,7 @@ const views = {
   checklists: "Checklists",
   notifications: "Notificações",
   whatsapp: "WhatsApp",
+  gmail: "Gmail",
   reports: "Relatórios"
 };
 
@@ -167,6 +174,9 @@ document.getElementById("checklistForm").addEventListener("submit", saveChecklis
 document.getElementById("whatsappForm").addEventListener("submit", saveWhatsappConfig);
 document.getElementById("whatsappTestForm").addEventListener("submit", sendWhatsappTest);
 document.getElementById("connectWhatsappButton").addEventListener("click", connectWhatsapp);
+document.getElementById("runGmailAll").addEventListener("click", () => runGmailAutomation("all"));
+document.getElementById("runGmailBoletos").addEventListener("click", () => runGmailAutomation("boletos"));
+document.getElementById("runGmailArchive").addEventListener("click", () => runGmailAutomation("archive"));
 document.getElementById("docOwnerType").addEventListener("change", renderOwnerOptions);
 document.getElementById("runRobot").addEventListener("click", runNotificationRobot);
 document.getElementById("openQuickDoc").addEventListener("click", () => showView("documents"));
@@ -335,6 +345,43 @@ async function sendWhatsappTest(event) {
   }
 }
 
+async function runGmailAutomation(kind) {
+  if (!requirePermission("canRunGmailAutomations", "Apenas gestor ou supervisor podem rodar automações do Gmail.")) return;
+
+  const status = document.getElementById("gmailAutomationStatus");
+  const summary = document.getElementById("gmailSummary");
+  status.textContent = "Executando...";
+
+  const endpoints = {
+    all: "/api/run-gmail-automations",
+    boletos: "/api/run-gmail-boletos",
+    archive: "/api/run-gmail-archive"
+  };
+
+  try {
+    const response = await fetch(endpoints[kind], { method: "POST" });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Falha ao executar automação.");
+
+    const boletos = result.boletos?.result || result.result || {};
+    const arquivamento = result.arquivamento?.result || result.result || {};
+    status.textContent = "Concluído";
+    summary.innerHTML = `
+      <div class="gmail-result">
+        <strong>Última execução</strong>
+        <span>Boletos salvos: ${boletos.saved ?? "-"}</span>
+        <span>Boletos ignorados: ${boletos.skipped ?? "-"}</span>
+        <span>Emails arquivados: ${arquivamento.archived ?? "-"}</span>
+      </div>
+    `;
+    showToast("Automação do Gmail executada.");
+  } catch (error) {
+    status.textContent = "Erro";
+    summary.innerHTML = `<p>${error.message || "Não foi possível executar a automação."}</p>`;
+    showToast(error.message || "Não foi possível executar a automação do Gmail.");
+  }
+}
+
 function loadSession() {
   const saved = localStorage.getItem(SESSION_KEY);
   if (!saved) return null;
@@ -416,6 +463,7 @@ function applyAuthState() {
   document.getElementById("documentForm").closest(".form-panel").hidden = !can("canManageDocuments");
   document.getElementById("checklistForm").closest(".form-panel").hidden = !can("canManageChecklists");
   document.querySelector('[data-view="whatsapp"]').hidden = !can("canConfigureWhatsapp");
+  document.querySelector('[data-view="gmail"]').hidden = !can("canRunGmailAutomations");
 
   if (!canView(document.querySelector(".view.active")?.id)) {
     showView(firstAllowedView());
@@ -451,8 +499,8 @@ function ownerName(documentItem) {
 
 function ownerContacts(documentItem) {
   const contacts = [
-    { name: "Gestor da frota", whatsapp: "5511999990001", email: "gestor@empresa.com" },
-    { name: "Supervisor operacional", whatsapp: "5511999990002", email: "supervisor@empresa.com" }
+    { name: "Gestor da frota", whatsapp: DEFAULT_ALERT_WHATSAPP, email: "gestor@empresa.com" },
+    { name: "Supervisor operacional", whatsapp: DEFAULT_ALERT_WHATSAPP, email: "supervisor@empresa.com" }
   ];
 
   if (documentItem.ownerType === "driver") {
@@ -465,7 +513,7 @@ function ownerContacts(documentItem) {
   const driver = state.drivers.find((item) => item.id === vehicle?.driverId);
   if (driver) contacts.unshift(driver);
   if (vehicle?.responsible) {
-    contacts.unshift({ name: vehicle.responsible, whatsapp: "5511888880000", email: "responsavel@empresa.com" });
+    contacts.unshift({ name: vehicle.responsible, whatsapp: DEFAULT_ALERT_WHATSAPP, email: "responsavel@empresa.com" });
   }
   return contacts;
 }
