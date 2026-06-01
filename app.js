@@ -22,7 +22,7 @@ const roleLabels = {
 
 const permissions = {
   gestor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "gmail", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "aviso", "whatsapp", "gmail", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
@@ -33,7 +33,7 @@ const permissions = {
     canRunGmailAutomations: true
   },
   supervisor: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "whatsapp", "gmail", "reports"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "aviso", "whatsapp", "gmail", "reports"],
     canManageVehicles: true,
     canManageDrivers: true,
     canManageDocuments: true,
@@ -44,7 +44,7 @@ const permissions = {
     canRunGmailAutomations: true
   },
   encarregado: {
-    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications"],
+    views: ["dashboard", "vehicles", "drivers", "documents", "checklists", "notifications", "aviso"],
     canManageVehicles: true,
     canManageDrivers: false,
     canManageDocuments: true,
@@ -156,6 +156,7 @@ const views = {
   documents: "Documentos",
   checklists: "Checklists",
   notifications: "Notificações",
+  aviso: "Aviso",
   whatsapp: "WhatsApp",
   gmail: "Gmail",
   reports: "Relatórios"
@@ -173,6 +174,7 @@ document.getElementById("documentForm").addEventListener("submit", saveDocument)
 document.getElementById("checklistForm").addEventListener("submit", saveChecklist);
 document.getElementById("whatsappForm").addEventListener("submit", saveWhatsappConfig);
 document.getElementById("whatsappTestForm").addEventListener("submit", sendWhatsappTest);
+document.getElementById("avisoForm").addEventListener("submit", sendAvisoWhatsapp);
 document.getElementById("connectWhatsappButton").addEventListener("click", connectWhatsapp);
 document.getElementById("runGmailAll").addEventListener("click", () => runGmailAutomation("all"));
 document.getElementById("runGmailBoletos").addEventListener("click", () => runGmailAutomation("boletos"));
@@ -345,6 +347,43 @@ async function sendWhatsappTest(event) {
   }
 }
 
+async function sendAvisoWhatsapp(event) {
+  event.preventDefault();
+  if (!requirePermission("canSendAlerts", "Seu perfil não pode enviar avisos por WhatsApp.")) return;
+
+  const form = event.target;
+  const status = document.getElementById("avisoStatus");
+  const resultBox = document.getElementById("avisoResult");
+  const payload = Object.fromEntries(new FormData(form));
+  status.textContent = "Enviando...";
+
+  try {
+    const response = await fetch("/api/test-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Falha no envio.");
+
+    status.textContent = result.status || "Processado";
+    resultBox.innerHTML = `
+      <div class="aviso-result-card">
+        <strong>Aviso processado</strong>
+        <span>Destino: ${normalizePhone(payload.to)}</span>
+        <span>Status: ${result.status}</span>
+        <span>Provedor: ${result.provider || "não informado"}</span>
+      </div>
+    `;
+    form.reset();
+    showToast(`Aviso processado: ${result.status}.`);
+  } catch (error) {
+    status.textContent = "Erro";
+    resultBox.innerHTML = `<p>${error.message || "Não foi possível enviar o aviso."}</p>`;
+    showToast(error.message || "Não foi possível enviar o aviso.");
+  }
+}
+
 async function runGmailAutomation(kind) {
   if (!requirePermission("canRunGmailAutomations", "Apenas gestor ou supervisor podem rodar automações do Gmail.")) return;
 
@@ -462,6 +501,7 @@ function applyAuthState() {
   document.getElementById("driverForm").closest(".form-panel").hidden = !can("canManageDrivers");
   document.getElementById("documentForm").closest(".form-panel").hidden = !can("canManageDocuments");
   document.getElementById("checklistForm").closest(".form-panel").hidden = !can("canManageChecklists");
+  document.querySelector('[data-view="aviso"]').hidden = !can("canSendAlerts");
   document.querySelector('[data-view="whatsapp"]').hidden = !can("canConfigureWhatsapp");
   document.querySelector('[data-view="gmail"]').hidden = !can("canRunGmailAutomations");
 

@@ -435,7 +435,9 @@ th {
 
 .gmail-actions,
 .gmail-summary,
-.gmail-result {
+.gmail-result,
+.aviso-result,
+.aviso-result-card {
   display: grid;
   gap: 12px;
 }
@@ -449,6 +451,19 @@ th {
 }
 
 .gmail-result {
+  color: var(--ink);
+}
+
+.aviso-form textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.aviso-result {
+  color: var(--muted);
+}
+
+.aviso-result-card {
   color: var(--ink);
 }
 

@@ -52,6 +52,7 @@
         <button class="nav-item" data-view="documents">Documentos</button>
         <button class="nav-item" data-view="checklists">Checklists</button>
         <button class="nav-item" data-view="notifications">Notificações</button>
+        <button class="nav-item" data-view="aviso">Aviso</button>
         <button class="nav-item" data-view="whatsapp">WhatsApp</button>
         <button class="nav-item" data-view="gmail">Gmail</button>
         <button class="nav-item" data-view="reports">Relatórios</button>
@@ -249,6 +250,32 @@
               <tbody id="notificationRows"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section class="view" id="aviso">
+        <div class="split-layout">
+          <section class="form-panel">
+            <div class="panel-heading">
+              <h2>Enviar aviso por WhatsApp</h2>
+              <span id="avisoStatus">API configurada pelo servidor</span>
+            </div>
+            <form id="avisoForm" class="test-form aviso-form">
+              <input name="to" placeholder="Número com DDD e DDI. Ex: 5594991712559" required />
+              <textarea name="message" rows="7" placeholder="Digite a mensagem do aviso" required></textarea>
+              <button class="primary-button" type="submit">Enviar aviso</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Resultado</h2>
+              <span>WhatsApp</span>
+            </div>
+            <div class="aviso-result" id="avisoResult">
+              <p>O envio usa a integração de WhatsApp ativa no backend, incluindo Z-API, webhook ou Cloud API.</p>
+            </div>
+          </section>
         </div>
       </section>
 
