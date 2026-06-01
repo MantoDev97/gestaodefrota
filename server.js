@@ -575,7 +575,11 @@ function localDateKey(date) {
 }
 
 function normalizePhone(phone) {
-  return String(phone || "").replace(/\D/g, "");
+  const digits = String(phone || "").replace(/\D/g, "");
+  if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) {
+    return `55${digits}`;
+  }
+  return digits;
 }
 
 function automationStatus() {
